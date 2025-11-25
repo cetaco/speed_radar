@@ -22,26 +22,29 @@ static struct k_thread cam_thread;
 static struct k_thread speed_sensor_thread;
 static struct k_thread display_thread;
 
-//#ifdef TEST_ACTIVE
 K_THREAD_STACK_DEFINE(tests_stack, THREAD_STACK_SIZE);
 static struct k_thread tests_thread;
-//#endif
 
-K_SEM_DEFINE(speed_sem, 0, 1);   // Semáforo para notificar thread
+// Semáforo para notificar thread
+K_SEM_DEFINE(speed_sem, 0, 1);   
 
+//callback da thread dos sensores
 static struct gpio_callback mag_1_cb_data;
 static struct gpio_callback mag_2_cb_data;
 
+//definição da mensage queue para o sensor de velocidade
 #define SPEED_MSGQ_SIZE 4
 #define SPEED_MSGQ_ITEM_SIZE sizeof(int)
 
 K_MSGQ_DEFINE(speed_msgq, SPEED_MSGQ_ITEM_SIZE, SPEED_MSGQ_SIZE, 4);
 
+//definição da mensage queue para o display
 #define DISPLAY_MSGQ_SIZE 4
 #define DISPLAY_MSGQ_ITEM_SIZE sizeof(int[2])
 
 K_MSGQ_DEFINE(display_msgq, DISPLAY_MSGQ_ITEM_SIZE, DISPLAY_MSGQ_SIZE, 4);
 
+//area de variaveis globais
 int64_t speed_last_time = 0;
 int speed_delta = 0;
 int speed_state = 0;
@@ -49,16 +52,19 @@ int speed = 0;
 
 void mag_1_callback_func(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
+    //sensor 1 inicia a maquina de estado
     k_msgq_purge(&speed_msgq);
     if (speed_state == 0){
         speed_state += 1;
         speed_last_time = k_uptime_get();
+        //libera a thread de sensor
         k_sem_give(&speed_sem);
     }
 }
 
 void mag_2_callback_func(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
+    //sensor 2 faz o loop de contgem de eixos da maquina de estados
     k_msgq_purge(&speed_msgq);
     if (speed_state == 1){
         speed_delta = k_uptime_get() - speed_last_time;
@@ -76,10 +82,14 @@ void radar_reset(){
 
 void speed_sensor_thread_start(void *arg_1, void *arg_2, void *arg_3)
 {
+    //orquestra o sensor de velocidade
     while(1){
+        //se a maquina de estados não foi iniciada, pausa a thread com um semáforo
         if (speed_state <= 1)
             k_sem_take(&speed_sem, K_FOREVER);
 
+        //se a ultima leitura do sensor de eixos foi feita há mais de 2 segundos, 
+        //finaliza essa leitura e envia para a main via msg queue
         else if (k_uptime_get() - speed_last_time > 2000){
             speed_state -= 1;
             int speed = CONFIG_RADAR_SENSOR_DISTANCE_MM/speed_delta * 3.6;
@@ -88,7 +98,6 @@ void speed_sensor_thread_start(void *arg_1, void *arg_2, void *arg_3)
             k_msgq_put(&speed_msgq, &speed_state, K_MSEC(1)); 
             k_sleep(K_MSEC(1));
             k_msgq_put(&speed_msgq, &speed, K_MSEC(1));
-            
             
             radar_reset();
         }
@@ -101,27 +110,28 @@ void speed_sensor_thread_start(void *arg_1, void *arg_2, void *arg_3)
 // Blink thread entry point
 void display_thread_start(void *arg_1, void *arg_2, void *arg_3)
 {
+    //orquestra a thread do display
     printk("display thread OK...\r\n");
     int display_info[2];
     while (1) {
-        //printk("hello from cam\r\n");
         k_msleep(50);
+
+        //se existir algo na mensage queue, exibe no formato correto
         if (k_msgq_get(&display_msgq, &display_info, K_FOREVER) == 0){
             printk("╔═══════════════════════════════╗\r\n");
             printk("║            DISPLAY            ║\r\n");
             printk("║                               ║\r\n");
-            if (display_info[1] == 2) printk("║   VERMELHO; velocidade: %d\t║\r\n", display_info[0]);
-            else if (display_info[1] == 1) printk("║  AMARELO; velocidade: %d\t║\r\n", display_info[0]);
-            else if (display_info[1] == 0) printk("║  VERDE; velocidade: %d\t║\r\n", display_info[0]);
+            if (display_info[1] == 2) printk("║       \033[31mvelocidade: %d\033[0m\t\t║\r\n", display_info[0]);
+            else if (display_info[1] == 1) printk("║       \033[33mvelocidade: %d\033[0m\t\t║\r\n", display_info[0]);
+            else if (display_info[1] == 0) printk("║       \033[32mvelocidade: %d\033[0m\t\t║\r\n", display_info[0]);
             else printk("tem parada errada ai, irmao");
             printk("║                               ║\r\n");
             printk("╚═══════════════════════════════╝\r\n\n\n");
         }
-        
-        
     }
 }
 
+//definição da estrutura usada no zbus da camera
 typedef struct{
     char data[8];
 }cam_bus;
@@ -134,6 +144,7 @@ ZBUS_CHAN_DEFINE(cam_chan,
     ZBUS_MSG_INIT(.data = "\0") // valor inicial
 );
 
+//gera uma placa no formato do percosul
 void generate_placa_mercosul(char *placa) {
     const char letras[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const char numeros[] = "0123456789";
@@ -149,17 +160,21 @@ void generate_placa_mercosul(char *placa) {
     placa[6] = numeros[sys_rand32_get() % 10];
     placa[7] = '\0'; // Fim da string
 }
+
+
 void cam_thread_start(void *arg_1, void *arg_2, void *arg_3)
 {
+
+    //orquestra a thread da camera
     printk("cam thread OK...\r\n");
 
     cam_bus data;
     char placa[8] = "0000000";
 
     while (1) {
-        // Espera mensagem da main
+        // Espera um trigger no formato "xxxxxxx" para poder gerar uma placa, se der erro
+        // devolve a placa "0000000"
         if (zbus_chan_read(&cam_chan, &data, K_FOREVER) == 0) {
-            //printk("Thread recebeu: %.*s\n", 7, data.data);
 
             if (memcmp(data.data, "xxxxxxx", 8) == 0) {
                 //gera placa aleatória
@@ -170,12 +185,15 @@ void cam_thread_start(void *arg_1, void *arg_2, void *arg_3)
             }
             zbus_chan_pub(&cam_chan, &data, K_NO_WAIT);
         }
-        k_msleep(5); // previne busy-loop
+        k_msleep(5);
     }
 }
 
-//#ifdef CONFIG_TEST_ACTIVE
-void tests_thread_start(void *ret, void *main_thread_paused, void *arg_3){
+void tests_thread_start(void *arg_1, void *arg_2, void *arg_3){
+
+    //thread única de testes, rodará somente uma vez no inicio do programa
+
+    //device dummy
     static struct device dummy;
     static struct gpio_callback dummy_cb;
 
@@ -189,6 +207,16 @@ void tests_thread_start(void *ret, void *main_thread_paused, void *arg_3){
     /*-----------------------------------------------------------------------------*/
     /*-----------------------------------------------------------------------------*/
 
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(200));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(200));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(200));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(6000));
+
+    //simula um carro com 2 eixos
     mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
     k_sleep(K_MSEC(60));
     mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
@@ -238,13 +266,62 @@ void tests_thread_start(void *ret, void *main_thread_paused, void *arg_3){
     k_sleep(K_MSEC(30));
     mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
     k_sleep(K_MSEC(8000));
+
+    //12 eixos
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(30));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(8000));
 }
 //#endif
 
 int main(void)
 {
-    int ret;
-
+    //configura os sensores
     printk("setting up the mag sensors...\r\n");
 
     if (!gpio_is_ready_dt(&mag_1)) {
@@ -256,12 +333,13 @@ int main(void)
         return 0;
     }
     
-    //configure mag_1 to give green for mag_1_treatment
+    //configura mag_1 para ativar o callback
     gpio_pin_configure_dt(&mag_1, GPIO_INPUT | GPIO_INT_EDGE_TO_ACTIVE);
     gpio_init_callback(&mag_1_cb_data, mag_1_callback_func, BIT(mag_1.pin));
     gpio_add_callback(mag_1.port, &mag_1_cb_data);
     gpio_pin_interrupt_configure_dt(&mag_1, GPIO_INT_EDGE_TO_ACTIVE);
 
+    //configura mag_2 para ativar o callback
     gpio_pin_configure_dt(&mag_2, GPIO_INPUT | GPIO_INT_EDGE_TO_ACTIVE);
     gpio_init_callback(&mag_2_cb_data, mag_2_callback_func, BIT(mag_2.pin));
     gpio_add_callback(mag_2.port, &mag_2_cb_data);
@@ -310,42 +388,44 @@ int main(void)
                                 0,                      // Options
                                 K_NO_WAIT);             // Delay
 
-    //#ifdef CONFIG_TEST_ACTIVE
-    bool main_thread_paused = false;
+
     tests_tid = k_thread_create (&tests_thread,          // Thread struct
                                 tests_stack,            // Stack
                                 K_THREAD_STACK_SIZEOF(tests_stack),
                                 tests_thread_start,     // Entry point
-                                &ret,                   // arg_1
-                                &main_thread_paused,    // arg_2
+                                NULL,                   // arg_1
+                                NULL,    // arg_2
                                 NULL,                   // arg_3
                                 5,                      // Priority
                                 0,                      // Options
                                 K_NO_WAIT);             // Delay
-    //#endif
-    printk("threads OK\r\n\n\n");
+
+    printk("threads OK\n");
+
     int axis = 0;
     
+    printk("->>>>%d", (CONFIG_RADAR_SPEED_LIMIT_LIGHT_KMH * CONFIG_RADAR_WARNING_THRESHOLD_PERCENT) / 100);
     while (1) {
-
-        //#ifdef CONFIG_TEST_ACTIVE
-        if (main_thread_paused){
-            k_msleep(100);
-            continue;
-        }
-        //#endif
+        //inicia a thread main
 
         int ret = k_msgq_get(&speed_msgq, &axis, K_MSEC(100));
+        //se tiver algo na mensage queue dos sensores de velocidade, solicita a placa
+        //envia a placa para o display
+
         if (ret == 0) {
             int speed;
+
             k_msgq_get(&speed_msgq, &speed, K_MSEC(10));
 
+            //gera o trigger no zbus na camera e espera oara ter retorno
             cam_bus data = {.data = "xxxxxxx"};
             zbus_chan_pub(&cam_chan, &data, K_NO_WAIT);
             k_msleep(100);
             zbus_chan_read(&cam_chan, &data, K_FOREVER);
+
             printk("debug ---> (placa: %s, velocidade: %d, eixos: %d)\n\r", data.data, speed, axis);
 
+            //configura as informações que irão para a mensage queue do display
             int display_info[2];
 
             display_info[0] = speed;
@@ -353,7 +433,7 @@ int main(void)
                 if(speed > CONFIG_RADAR_SPEED_LIMIT_LIGHT_KMH){
                     display_info[1] = 2;
                 }
-                else if(speed > (CONFIG_RADAR_SPEED_LIMIT_LIGHT_KMH * (CONFIG_RADAR_WARNING_THRESHOLD_PERCENT / 100))){
+                else if(speed > ((CONFIG_RADAR_SPEED_LIMIT_LIGHT_KMH * CONFIG_RADAR_WARNING_THRESHOLD_PERCENT) / 100)){
                     display_info[1] = 1;
                 }
                 else{
@@ -365,13 +445,15 @@ int main(void)
                 if(speed > CONFIG_RADAR_SPEED_LIMIT_HEAVY_KMH){
                     display_info[1] = 2;
                 }
-                else if(speed > (CONFIG_RADAR_SPEED_LIMIT_HEAVY_KMH * (CONFIG_RADAR_WARNING_THRESHOLD_PERCENT / 100))){
+                else if(speed > ((CONFIG_RADAR_SPEED_LIMIT_HEAVY_KMH * CONFIG_RADAR_WARNING_THRESHOLD_PERCENT) / 10)){
                     display_info[1] = 1;
                 }
                 else{
                     display_info[1] = 1;
                 }
             }
+            printk("debug ---> (placa: %s, velocidade: %d, eixos: %d, aviso: %d)\n\r", data.data, display_info[0], axis, display_info[1]);
+            //envia na mensage queue do display
             k_msgq_put(&display_msgq, &display_info, K_NO_WAIT);
         }
 
