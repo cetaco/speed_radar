@@ -1,8 +1,4 @@
 menu "Zephyr"
-
-config TEST_ACTIVE
-    bool "run test suits"
-    default false
     
 config RADAR_SENSOR_DISTANCE_MM
     int "distance between sensors in mm"
@@ -23,11 +19,6 @@ config RADAR_WARNING_THRESHOLD_PERCENT
 config RADAR_CAMERA_FAILURE_RATE_PERCENT
     int "Porcentagem de chance da câmera simular uma falha (0-100)."
     default 10
-
-
-choice RNG_GENERATOR_CHOICE
-    default XOSHIRO_RANDOM_GENERATOR
-endchoice
 
     
 source "Kconfig.zephyr"
