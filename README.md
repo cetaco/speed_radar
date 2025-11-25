@@ -29,6 +29,3 @@ O projeto é baseado em threads:
 - 0 = verde (velocidade segura)
 - 1 = amarelo (velocidade próxima do limite)
 - 2 = vermelho (velocidade acima do limite ou problema)
-
-## Rodando os Testes
-Para executar os testes automatizados, utilize o comando adequado ao seu ambiente de desenvolvimento dentro da pasta do projeto.
