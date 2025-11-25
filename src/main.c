@@ -208,6 +208,15 @@ void tests_thread_start(void *arg_1, void *arg_2, void *arg_3){
     /*-----------------------------------------------------------------------------*/
 
     mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(150));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(150));
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(150));
+    mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
+    k_sleep(K_MSEC(6000));
+
+    mag_1_callback_func(&dummy, &dummy_cb, 1 << 6);
     k_sleep(K_MSEC(200));
     mag_2_callback_func(&dummy, &dummy_cb, 1 << 6);
     k_sleep(K_MSEC(200));
@@ -422,18 +431,15 @@ int main(void)
             zbus_chan_pub(&cam_chan, &data, K_NO_WAIT);
             k_msleep(100);
             zbus_chan_read(&cam_chan, &data, K_FOREVER);
-
-            printk("debug ---> (placa: %s, velocidade: %d, eixos: %d)\n\r", data.data, speed, axis);
-
             //configura as informações que irão para a mensage queue do display
             int display_info[2];
 
             display_info[0] = speed;
             if (axis <= 2){
-                if(speed > CONFIG_RADAR_SPEED_LIMIT_LIGHT_KMH){
+                if(speed >= CONFIG_RADAR_SPEED_LIMIT_LIGHT_KMH){
                     display_info[1] = 2;
                 }
-                else if(speed > ((CONFIG_RADAR_SPEED_LIMIT_LIGHT_KMH * CONFIG_RADAR_WARNING_THRESHOLD_PERCENT) / 100)){
+                else if(speed >= ((CONFIG_RADAR_SPEED_LIMIT_LIGHT_KMH * CONFIG_RADAR_WARNING_THRESHOLD_PERCENT) / 100)){
                     display_info[1] = 1;
                 }
                 else{
@@ -442,14 +448,14 @@ int main(void)
 
             }
             else{
-                if(speed > CONFIG_RADAR_SPEED_LIMIT_HEAVY_KMH){
+                if(speed >= CONFIG_RADAR_SPEED_LIMIT_HEAVY_KMH){
                     display_info[1] = 2;
                 }
-                else if(speed > ((CONFIG_RADAR_SPEED_LIMIT_HEAVY_KMH * CONFIG_RADAR_WARNING_THRESHOLD_PERCENT) / 10)){
+                else if(speed >= ((CONFIG_RADAR_SPEED_LIMIT_HEAVY_KMH * CONFIG_RADAR_WARNING_THRESHOLD_PERCENT) / 10)){
                     display_info[1] = 1;
                 }
                 else{
-                    display_info[1] = 1;
+                    display_info[1] = 0;
                 }
             }
             printk("debug ---> (placa: %s, velocidade: %d, eixos: %d, aviso: %d)\n\r", data.data, display_info[0], axis, display_info[1]);
