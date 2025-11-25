@@ -21,6 +21,7 @@ Para rodar o código no QEMU, abra o terminal do VSCode dentro da pasta do proje
 O projeto é baseado em threads:
 
 - **Thread Sensores**: Responsável pela coleta dos dados dos sensores magnéticos, incluindo a contagem dos eixos via máquina de estados e cálculo da velocidade com base no tempo entre o acionamento dos sensores e a distância entre eles.
+- **Camera Thread**: recebe um trigger via zBus e retorna uma placa no formato mercosul pelo mesmo canal.
 - Os dados de velocidade e contagem de eixos são enviados para a thread principal (main).
 - **Main Thread**: Aciona a thread da câmera via zbus como trigger para simular a leitura da placa no formato Mercosul, recebendo a placa de volta pelo zbus.
 - Main envia para a thread do display os valores de velocidade e o código da cor do display:
