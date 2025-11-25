@@ -1,0 +1,61 @@
+cmake:
+  application:
+    configuration-dir: '/home/cetaco/zephyrproject/apps/speed_radar'
+    source-dir: '/home/cetaco/zephyrproject/apps/speed_radar'
+  board:
+    name: 'mps2'
+    path:
+     - '/home/cetaco/zephyrproject/zephyr/boards/arm/mps2'
+    qualifiers: 'an385'
+    revision: ''
+  devicetree:
+    bindings-dirs:
+     - '/home/cetaco/zephyrproject/zephyr/dts/bindings'
+    files:
+     - '/home/cetaco/zephyrproject/zephyr/boards/arm/mps2/mps2_an385.dts'
+     - 'boards/arm/mps2_an385.overlay'
+    include-dirs:
+     - '/home/cetaco/zephyrproject/modules/hal/ambiq/dts'
+     - '/home/cetaco/zephyrproject/modules/hal/atmel/include'
+     - '/home/cetaco/zephyrproject/modules/hal/bouffalolab/include'
+     - '/home/cetaco/zephyrproject/modules/hal/bouffalolab/include/zephyr'
+     - '/home/cetaco/zephyrproject/modules/hal/gigadevice/include'
+     - '/home/cetaco/zephyrproject/modules/hal/microchip/include'
+     - '/home/cetaco/zephyrproject/modules/hal/microchip/dts'
+     - '/home/cetaco/zephyrproject/modules/hal/nuvoton/dts'
+     - '/home/cetaco/zephyrproject/modules/hal/nxp/dts'
+     - '/home/cetaco/zephyrproject/modules/hal/stm32/dts'
+     - '/home/cetaco/zephyrproject/modules/hal/ti/dts'
+     - '/home/cetaco/zephyrproject/zephyr/include'
+     - '/home/cetaco/zephyrproject/zephyr/include/zephyr'
+     - '/home/cetaco/zephyrproject/zephyr/dts/common'
+     - '/home/cetaco/zephyrproject/zephyr/dts/vendor'
+     - '/home/cetaco/zephyrproject/zephyr/dts/rx'
+     - '/home/cetaco/zephyrproject/zephyr/dts/x86'
+     - '/home/cetaco/zephyrproject/zephyr/dts/xtensa'
+     - '/home/cetaco/zephyrproject/zephyr/dts/sparc'
+     - '/home/cetaco/zephyrproject/zephyr/dts/riscv'
+     - '/home/cetaco/zephyrproject/zephyr/dts/posix'
+     - '/home/cetaco/zephyrproject/zephyr/dts/arm64'
+     - '/home/cetaco/zephyrproject/zephyr/dts/arm'
+     - '/home/cetaco/zephyrproject/zephyr/dts/arc'
+     - '/home/cetaco/zephyrproject/zephyr/dts'
+    user-files:
+     - 'boards/arm/mps2_an385.overlay'
+  kconfig:
+    files:
+     - '/home/cetaco/zephyrproject/zephyr/boards/arm/mps2/mps2_an385_defconfig'
+     - '/home/cetaco/zephyrproject/apps/speed_radar/prj.conf'
+    user-files:
+     - '/home/cetaco/zephyrproject/apps/speed_radar/prj.conf'
+  toolchain:
+    name: 'zephyr'
+    path: '/home/cetaco/zephyr-sdk-0.17.2'
+  zephyr:
+    version: '4.2.99'
+    zephyr-base: '/home/cetaco/zephyrproject/zephyr'
+version: '0.1.0'
+west:
+  command: '/home/cetaco/zephyrproject/.venv/bin/west build -p always -b mps2/an385 -- -DDTC_OVERLAY_FILE=boards/arm/mps2_an385.overlay'
+  topdir: '/home/cetaco/zephyrproject'
+  version: '1.4.0'

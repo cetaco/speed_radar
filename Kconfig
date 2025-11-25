@@ -1,0 +1,34 @@
+menu "Zephyr"
+
+config TEST_ACTIVE
+    bool "run test suits"
+    default false
+    
+config RADAR_SENSOR_DISTANCE_MM
+    int "distance between sensors in mm"
+    default 4000
+
+config RADAR_SPEED_LIMIT_LIGHT_KMH
+    int "Limite de velocidade para veículos leves (km/h)."
+    default 100
+
+config RADAR_SPEED_LIMIT_HEAVY_KMH
+    int "Limite de velocidade para veículos pesados (km/h)."
+    default 80
+
+config RADAR_WARNING_THRESHOLD_PERCENT
+    int "Percentual do limite que ativa o display amarelo"
+    default 90
+
+config RADAR_CAMERA_FAILURE_RATE_PERCENT
+    int "Porcentagem de chance da câmera simular uma falha (0-100)."
+    default 10
+
+
+choice RNG_GENERATOR_CHOICE
+    default XOSHIRO_RANDOM_GENERATOR
+endchoice
+
+    
+source "Kconfig.zephyr"
+endmenu

@@ -1,0 +1,5 @@
+west:
+  command: /home/cetaco/zephyrproject/.venv/bin/west build -p always -b mps2/an385
+    -- -DDTC_OVERLAY_FILE=boards/arm/mps2_an385.overlay
+  topdir: /home/cetaco/zephyrproject
+  version: 1.4.0

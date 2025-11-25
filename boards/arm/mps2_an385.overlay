@@ -1,0 +1,20 @@
+/ {
+    aliases {
+        mag-sensor-1 = &mag_1;
+        mag-sensor-2 = &mag_2;
+    };
+
+    gpios_entries {
+        compatible = "gpio-keys";
+        debounce-interval-ms = <50>;
+        polling-mode;
+
+        mag_1: d5 {
+            gpios = <&gpio0 5 3>;
+        };
+
+        mag_2: d6 {
+            gpios = <&gpio0 6 3>;
+        };
+    };
+};
